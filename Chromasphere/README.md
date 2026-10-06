@@ -1,111 +1,58 @@
-# ChromaSphere
+# ChromaSphere — Work Samples
 
-Work samples from **ChromaSphere: 3D Line Puzzle**, a shipped mobile game (Android and iOS) by Red Prism Games. Players connect matching colored nodes on a sphere without crossing paths, with waypoints, walls, and warps as extra constraints.
+A short excerpt from **ChromaSphere: 3D Line Puzzle**, a shipped Unity mobile game (Android and iOS). Players connect matching colored nodes on a sphere without crossing paths, spend hints and unlock daily packs.
 
-These files are **exact copies** of production scripts. They are not a buildable Unity project: they still reference other game systems (auth, localization, addressables, Unity IAP, LevelPlay, Cloud Save) that live outside this folder.
+These are exact copies of live source, meant to be **read**, not compiled. They still call into auth, localization, Unity IAP, LevelPlay, and Cloud Save, which live outside this folder.
 
-Internal project name: `Global-Link`. Product name: ChromaSphere.
-
----
-
-## Puzzle-Gameplay
-
-Core 3D puzzle: a latitude/longitude grid on a sphere, path drawing, win detection, and camera orbit.
-
-| File | What it does |
-|---|---|
-| `Puzzle.cs` | Main gameplay controller. Handles input vs camera pan, drawing a path cell-to-cell, collisions, undo/reset, hints, connecting node pairs, taking warps, and firing `PuzzleCompleted` when every pair is solved. |
-| `PuzzleConfig.cs` | ScriptableObject that describes one puzzle: grid shape, node/waypoint/warp/wall positions, colors, baked solutions, and starting camera view. |
-| `PuzzleGrid.cs` | Builds the spherical grid from `cellsPerRow`, wires neighbor relationships, and draws great-circle connections between cells. |
-| `GridCell.cs` | One cell on the sphere. Converts row/column into latitude/longitude bounds, places itself in Cartesian space, and exposes neighbor / dead-end queries used by generation and pathing. |
-| `PolarVector3.cs` | Latitude/longitude/radius helper used everywhere the game thinks in spherical coordinates instead of XYZ. |
-| `Node.cs` | A colored endpoint the player must pair with its match. |
-| `Waypoint.cs` | A cell the matching-color path is required to pass through. |
-| `Warp.cs` | A paired portal. A path that enters one warp continues from its pair, including the preview line through the sphere. |
-| `Wall.cs` | An impassable cell. |
-| `CameraController.cs` | Orbit camera on an arm around the sphere: drag, momentum, pitch limits, aspect-ratio fit, and the post-solve spin. |
-| `MultiLineRenderer.cs` | Renders a path as multiple line segments so a route can wrap the sphere and jump through warps. |
-| `PuzzleProvider.cs` | Tiny scene-to-scene handoff that carries the `PuzzleConfig` being loaded. |
-| `PackInfo.cs` | Display metadata for a puzzle pack (name, tint) used by menus. |
-| `ColorScheme.cs` / `ColorManager.cs` | Loads and switches player-selected palettes, including which schemes are unlocked. |
-
-What this sample shows: custom spherical geometry, grid topology, and a fairly large gameplay state machine (input, drawing, collisions, undo, completion) rather than a tutorial-scale puzzle.
+Start with `Puzzle Gameplay` (the spherical match), then `Daily Puzzles` (how new content is generated and fetched), then `In App Purchases` and `Ads and Hints` (how store and ads plug into hints and dailies).
 
 ---
 
-## Daily-Puzzles
+## Puzzle Gameplay
 
-Two halves of the daily-puzzle feature: the mobile client that fetches and presents today's puzzles, and the headless generator that creates them.
+`Puzzle` is an N-row spherical match that runs itself: grid, path drawing, collisions, undo/reset, hints, connecting node pairs, taking warps, and `PuzzleCompleted` when every pair is solved. A drag threshold decides input vs camera pan so orbiting the sphere does not start a line.
 
-Store receipt validation on the server is **not** included here.
+`PuzzleConfig` is the ScriptableObject for one puzzle — grid shape, node/waypoint/warp/wall positions, baked solutions, starting camera. `PuzzleGrid` and `GridCell` turn `cellsPerRow` into latitude/longitude cells with neighbor topology and great-circle edges. `PolarVector3` is the lat/long/radius type used instead of thinking in XYZ.
 
-### Client
+The rest is constraints and presentation. `Node`, `Waypoint`, `Warp`, and `Wall` sit on the grid. `CameraController` is the orbit arm: drag, momentum, pitch limits, aspect-ratio fit, post-solve spin. `MultiLineRenderer` draws a path as segments so a route can wrap the sphere and jump through a warp. `PuzzleProvider` is the scene-to-scene handoff of the config being loaded. `ColorScheme` / `ColorManager` swap player palettes, including which schemes are unlocked.
 
-| File | What it does |
-|---|---|
-| `DailyPuzzleManager.cs` | Fetches today's puzzle JSON from the daily-puzzle HTTP API, caches it on disk, and hydrates `PuzzleConfig` objects. Sends store type plus purchase tokens so the server can unlock paid difficulty packs. Refetches when IAP entitlements change. |
-| `DailyPuzzlesPage.cs` | Menu page that waits for puzzles to be ready, then builds a section per difficulty pack and shows an “unlock more” entry when paid packs are locked. Editor/marketing builds also get a date picker for on-demand fetches. |
-| `DailyPuzzlesSection.cs` | One difficulty row: localized title, pack tint, and a button per puzzle id. |
-| `DailyPuzzlesPageButton.cs` | Main-menu entry that routes into the daily-puzzles page. |
-| `DailyPuzzleStreakDisplay.cs` | Streak UI: how many dailies were finished today vs the threshold to keep the streak, and the current streak count. |
-
-### Generator
-
-Headless “lite” copies of the in-editor puzzle builder. No Unity GameObjects; they generate `PuzzleConfig` data from seeded randomness and difficulty curves.
-
-| File | What it does |
-|---|---|
-| `DailyPuzzleGenManager.cs` | Loads pack-generation configs, keeps yesterday/today/tomorrow in memory, regenerates when the calendar day rolls over, and filters which packs a requester may receive based on availability keys. |
-| `PuzzleBuilderLite/PuzzlePackGeneratorLite.cs` | Turns a `PackGenerationConfig` plus a master seed into a list of puzzles. Samples difficulty curves (node pairs, warps, walling) per puzzle index and retries failed builds. |
-| `PuzzleBuilderLite/PuzzleBuilderLite.cs` | Procedural builder: place walls, node pairs, waypoints, and warps on the lite grid, then search for a valid solution path. |
-| `PuzzleBuilderLite/PuzzleGridLite.cs` / `GridCellLite.cs` | Grid topology used during generation (neighbors, neighborhoods) without rendering. |
-| `PuzzleBuilderLite/PuzzleObject*.cs` | Lite stand-ins for nodes, waypoints, warps, and walls. |
-| `Data/PackGenerationConfig.cs` | Difficulty recipe for a pack: grid shape, min/max node and warp pairs, and animation curves for walling/clustering over the pack. |
-| `Data/PuzzleConfig.cs` / `PuzzleConfigPayload.cs` / `PuzzlesPayload.cs` | Serializable puzzle records and the JSON payload the client downloads. |
-| `Data/MyAnimationCurve.cs` / `MyQuaternion.cs` / `PolarVector3.cs` | JSON-friendly stand-ins for Unity types the generator needs without a full editor runtime. |
-| `Random.cs` | Seeded RNG used so a date + pack config always regenerates the same puzzles. |
-
-What this sample shows: a live-ops loop (generate on a server, fetch on device, gate by IAP) and a seeded content pipeline instead of hand-authoring every daily.
+- `Puzzle.cs`, `PuzzleConfig.cs`, `PuzzleGrid.cs`, `GridCell.cs`, `PolarVector3.cs`
+- `Node.cs`, `Waypoint.cs`, `Warp.cs`, `Wall.cs`
+- `CameraController.cs`, `MultiLineRenderer.cs`
+- `PuzzleProvider.cs`, `PackInfo.cs`, `ColorScheme.cs`, `ColorManager.cs`
 
 ---
 
-## In-App-Purchases
+## Daily Puzzles
 
-Unity IAP v5 flow for a small catalog: ad-free, hint packs, and daily-puzzle difficulty unlocks.
+Two halves of the same live-ops loop: the mobile client that fetches today's puzzles, and a headless generator that creates them from a date seed. Store receipt validation on the server is not in this sample.
 
-| File | What it does |
-|---|---|
-| `PurchaseManager.cs` | Connects `StoreController`, registers product definitions, fetches purchases, checks entitlements on startup, confirms pending orders, grants hint payouts, tracks owned non-consumables, and restores transactions on iOS/Android (with an editor fake path). Fires `AdFreeChanged` and `DailyPuzzleAccessChanged` so other systems can react. |
-| `PurchaseItem.cs` | One store-row widget: localized price, owned state for non-consumables, and “buy” which calls `InitiatePurchase`. Hides the ad-free row when ads are compiled out. |
-| `PurchaseUIController.cs` | Store overlay: locks puzzle/camera input while open, shows a dialog on failed purchases, and hides ad-free UI when ads are disabled. |
+The client caches today's JSON and hydrates `PuzzleConfig` objects. `DailyPuzzleManager` sends store type plus purchase tokens so the server can unlock paid difficulty packs, and refetches when IAP entitlements change. `DailyPuzzlesPage` waits until puzzles are ready, then builds a section per pack (and an unlock-more row when paid packs are locked). `DailyPuzzleStreakDisplay` is how many dailies were finished today vs the streak threshold.
 
-Google Play license-key obfuscation (`GooglePlayTangle`) and App Store / Play receipt validators are **not** included.
+The generator is a “lite” copy of the in-editor builder: no GameObjects, seeded randomness, difficulty curves. `DailyPuzzleGenManager` keeps yesterday/today/tomorrow in memory and filters packs by availability keys. `PuzzlePackGeneratorLite` samples a `PackGenerationConfig` (node pairs, warps, walling) and retries failed builds; `PuzzleBuilderLite` places walls, pairs, waypoints, and warps, then searches for a valid path. JSON-friendly stand-ins (`MyAnimationCurve`, `MyQuaternion`, `PolarVector3`) keep Unity types out of the server runtime.
 
-What this sample shows: wiring a real store catalog into gameplay systems (hints, ads, dailies) including restore and startup entitlement checks, not just a purchase button.
-
----
-
-## Ads-and-Hints
-
-LevelPlay ads plus a hint currency that can be earned from rewarded ads, bought with IAP, or used offline with later sync.
-
-| File | What it does |
-|---|---|
-| `AdManager.cs` | Initializes LevelPlay (banner, interstitial, rewarded). Caps interstitials by puzzles-completed, respects an ad-free entitlement, and exposes load/show/fail events. App keys and ad unit IDs are inspector fields (not hardcoded in this file). |
-| `HintManager.cs` | Hint wallet. Syncs count through Unity Cloud Save when authenticated; falls back to local storage offline, including hints spent while offline. Listens to IAP hint payouts. |
-| `AdForHint.cs` | Rewarded-ad button. Enables when a rewarded placement is loaded; on reward, grants hints and queues the next ad. Hidden when ads are disabled. |
-| `AdAwarePanel.cs` | Shifts UI safe area to sit above the banner, and collapses that offset when ad-free is owned. |
-| `HintCounter.cs` | HUD for remaining hints (`∞` in demo builds). |
-
-What this sample shows: ads as a resource loop (watch → hint) integrated with IAP, cloud save, and layout, rather than a fire-and-forget interstitial.
+- `DailyPuzzleManager.cs`, `DailyPuzzlesPage.cs`, `DailyPuzzlesSection.cs`, `DailyPuzzlesPageButton.cs`, `DailyPuzzleStreakDisplay.cs` — `Client/`
+- `DailyPuzzleGenManager.cs`, `Random.cs` — `Generator/`
+- `PuzzlePackGeneratorLite.cs`, `PuzzleBuilderLite.cs`, `PuzzleGridLite.cs`, `GridCellLite.cs`, `PuzzleObject*.cs` — `Generator/PuzzleBuilderLite/`
+- `PackGenerationConfig.cs`, `PuzzleConfig.cs`, `PuzzleConfigPayload.cs`, `PuzzlesPayload.cs` — `Generator/Data/`
+- `MyAnimationCurve.cs`, `MyQuaternion.cs`, `PolarVector3.cs` — `Generator/Data/`
 
 ---
 
-## Not included on purpose
+## In App Purchases
 
-- Store signing keys, Apple `.p8`, Google Play service-account JSON
-- Unity IAP Google Play tangle / license key
-- App Store / Play purchase-validation server
-- Adjust analytics tokens
-- LevelPlay app keys and ad unit IDs (those live on the Ad Manager prefab, not in `AdManager.cs`)
-- Marketing videos, fonts, and third-party SDK trees
+`PurchaseManager` is the Unity IAP v5 catalog: ad-free, hint packs, and daily-puzzle difficulty unlocks. It registers products, checks entitlements on startup, confirms pending orders, grants hint payouts, tracks owned non-consumables, and restores on iOS/Android (with an editor fake path). `AdFreeChanged` and `DailyPuzzleAccessChanged` let ads and dailies react without knowing store details.
+
+`PurchaseItem` is one store row — localized price, owned state, buy. `PurchaseUIController` is the overlay: lock puzzle/camera input while open, failed-purchase dialog, hide ad-free UI when ads are compiled out. Google Play license-key obfuscation and store receipt validators are not in this sample.
+
+- `PurchaseManager.cs`, `PurchaseItem.cs`, `PurchaseUIController.cs`
+
+---
+
+## Ads and Hints
+
+`AdManager` initializes LevelPlay (banner, interstitial, rewarded), caps interstitials by puzzles completed, and respects ad-free. App keys and ad unit IDs are inspector fields, not hardcoded. `HintManager` is the hint wallet: Cloud Save when authenticated, local storage offline (including hints spent offline), and IAP hint payouts.
+
+`AdForHint` is the rewarded button — enable when a placement is loaded, grant hints on reward, hide when ads are off. `AdAwarePanel` shifts UI above the banner and collapses that offset when ad-free is owned. `HintCounter` is the HUD (`∞` in demo builds).
+
+- `AdManager.cs`, `HintManager.cs`, `AdForHint.cs`, `AdAwarePanel.cs`, `HintCounter.cs`
