@@ -1,8 +1,6 @@
 # Idle Tic Tac Toe — Work Samples
 
-A short excerpt from **Idle Tic Tac Toe**, a Unity idle game whose boards play tic-tac-toe to earn Gum, then spend it on upgrades, prestige, and a skill tree.
-
-These are exact copies of live source, meant to be **read**, not compiled. They show how new content is added without rewriting the core loop.
+A short excerpt from **Idle Tic Tac Toe**, a Unity idle game whose boards play tic-tac-toe to earn Gum, then spend it on upgrades, prestige, and a skill tree. New content plugs in without rewriting the core loop.
 
 Start with `Board Simulation` (the gameplay object), then `Bonus Aggregation` and `Skill Tree` (how modifiers and meta upgrades plug in), then `Big Number Arithmetic` (the number type everything else sits on).
 

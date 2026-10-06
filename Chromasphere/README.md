@@ -1,8 +1,6 @@
 # ChromaSphere — Work Samples
 
-A short excerpt from **ChromaSphere: 3D Line Puzzle**, a shipped Unity mobile game (Android and iOS). Players connect matching colored nodes on a sphere without crossing paths, spend hints and unlock daily packs.
-
-These are exact copies of live source, meant to be **read**, not compiled. They still call into auth, localization, Unity IAP, LevelPlay, and Cloud Save, which live outside this folder.
+A short excerpt from **ChromaSphere: 3D Line Puzzle**, a shipped Unity mobile game (Android and iOS). Players connect matching colored nodes on a sphere without crossing paths, spend hints and unlock daily packs. Scripts still call into auth, localization, Unity IAP, LevelPlay, and Cloud Save, which live outside this folder.
 
 Start with `Puzzle Gameplay` (the spherical match), then `Daily Puzzles` (how new content is generated and fetched), then `In App Purchases` and `Ads and Hints` (how store and ads plug into hints and dailies).
 
